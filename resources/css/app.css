@@ -6,4 +6,12 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-forest-950: #062a20;
+    --color-forest-900: #0b3d2e;
+    --color-forest-800: #10523d;
+    --color-forest-700: #17684e;
+    --color-ivory-50: #fbfaf6;
+    --color-ivory-100: #f4f1e8;
+    --color-charcoal-900: #1c2421;
+    --color-charcoal-700: #3f4a45;
 }

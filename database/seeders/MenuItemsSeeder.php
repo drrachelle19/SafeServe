@@ -10,14 +10,13 @@ class MenuItemsSeeder extends Seeder
     /**
      * Run the database seeds.
      */
-  
     public function run(): void
     {
         $restaurantId = DB::table('restaurants')
             ->where('slug', 'safeserve-demo')
             ->value('id');
 
-        if (!$restaurantId) {
+        if (! $restaurantId) {
             throw new \RuntimeException('Demo restaurant not found. Run SafeServeSeeder first.');
         }
 
@@ -44,18 +43,14 @@ class MenuItemsSeeder extends Seeder
         ];
 
         foreach ($ingredients as $ingredient) {
-            DB::table('ingredients')->updateOrInsert(
-                [
-                    'restaurant_id' => $restaurantId,
-                    'name' => $ingredient,
-                ],
-                [
-                    'description' => 'Demo ingredient - confirm with restaurant kitchen',
-                    'is_verified' => false,
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                ]
-            );
+            DB::table('ingredients')->insertOrIgnore([
+                'restaurant_id' => $restaurantId,
+                'name' => $ingredient,
+                'description' => 'Demo ingredient - confirm with restaurant kitchen',
+                'is_verified' => false,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]);
         }
 
         $ingredientIds = DB::table('ingredients')
@@ -78,6 +73,8 @@ class MenuItemsSeeder extends Seeder
                 DB::table('ingredient_allergens')->insertOrIgnore([
                     'ingredient_id' => $ingredientIds[$ingredient],
                     'allergen_id' => $allergenIds[$allergen],
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             }
         }
@@ -124,25 +121,21 @@ class MenuItemsSeeder extends Seeder
         foreach ($menu as $item) {
             $categoryId = $categories[$item['category']] ?? null;
 
-            if (!$categoryId) {
-                throw new \RuntimeException('Menu category missing: ' . $item['category']);
+            if (! $categoryId) {
+                throw new \RuntimeException('Menu category missing: '.$item['category']);
             }
 
-            DB::table('menu_items')->updateOrInsert(
-                [
-                    'restaurant_id' => $restaurantId,
-                    'name' => $item['name'],
-                ],
-                [
-                    'menu_category_id' => $categoryId,
-                    'description' => $item['description'],
-                    'price' => $item['price'],
-                    'is_available' => true,
-                    'ingredients_verified' => false,
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                ]
-            );
+            DB::table('menu_items')->insertOrIgnore([
+                'restaurant_id' => $restaurantId,
+                'menu_category_id' => $categoryId,
+                'name' => $item['name'],
+                'description' => $item['description'],
+                'price' => $item['price'],
+                'is_available' => true,
+                'ingredients_verified' => false,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]);
 
             $menuItemId = DB::table('menu_items')
                 ->where('restaurant_id', $restaurantId)
@@ -153,10 +146,10 @@ class MenuItemsSeeder extends Seeder
                 DB::table('menu_item_ingredients')->insertOrIgnore([
                     'menu_item_id' => $menuItemId,
                     'ingredient_id' => $ingredientIds[$ingredient],
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             }
         }
     }
 }
-
-    

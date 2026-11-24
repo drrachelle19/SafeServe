@@ -8,11 +8,11 @@ use Illuminate\Support\Str;
 
 class SafeServeSeeder extends Seeder
 {
-   public function run(): void
+    public function run(): void
     {
         $restaurantId = DB::table('restaurants')->where('slug', 'safeserve-demo')->value('id');
 
-        if (!$restaurantId) {
+        if (! $restaurantId) {
             $restaurantId = DB::table('restaurants')->insertGetId([
                 'name' => 'SafeServe Restaurant',
                 'slug' => 'safeserve-demo',
@@ -30,7 +30,7 @@ class SafeServeSeeder extends Seeder
             DB::table('menu_categories')->updateOrInsert(
                 ['restaurant_id' => $restaurantId, 'name' => $category],
                 [
-                    'description' => $category . ' menu',
+                    'description' => $category.' menu',
                     'is_active' => true,
                     'updated_at' => now(),
                     'created_at' => now(),
@@ -62,13 +62,20 @@ class SafeServeSeeder extends Seeder
         }
 
         for ($i = 1; $i <= 5; $i++) {
+            $tableNumber = 'T'.str_pad((string) $i, 2, '0', STR_PAD_LEFT);
+
+            $qrCode = DB::table('restaurant_tables')
+                ->where('restaurant_id', $restaurantId)
+                ->where('table_number', $tableNumber)
+                ->value('qr_code') ?? Str::uuid()->toString();
+
             DB::table('restaurant_tables')->updateOrInsert(
                 [
                     'restaurant_id' => $restaurantId,
-                    'table_number' => 'T' . str_pad($i, 2, '0', STR_PAD_LEFT),
+                    'table_number' => $tableNumber,
                 ],
                 [
-                    'qr_code' => Str::uuid()->toString(),
+                    'qr_code' => $qrCode,
                     'is_active' => true,
                     'updated_at' => now(),
                     'created_at' => now(),
