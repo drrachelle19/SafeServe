@@ -114,6 +114,216 @@ class StaffOrderWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_completing_an_order_logs_every_worker_who_handled_it(): void
+    {
+        $context = $this->createRestaurantContext();
+        $preparedBy = $this->createStaffUser($context['restaurant_id'], 'kitchen');
+        $completedBy = $this->createStaffUser(
+            $context['restaurant_id'],
+            'manager',
+            'manager@safeserve.test',
+            'Manager Sarah'
+        );
+        $orderId = $this->createOrder($context['restaurant_id'], $context['table_id'], 'SS-DONE-001');
+
+        $this->actingAs($preparedBy)
+            ->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'preparing'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->actingAs($completedBy)
+            ->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'ready'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->actingAs($completedBy)
+            ->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'completed'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->assertDatabaseHas('order_worker_logs', [
+            'order_id' => $orderId,
+            'user_id' => $preparedBy->id,
+            'role' => 'kitchen',
+        ]);
+        $this->assertDatabaseHas('order_worker_logs', [
+            'order_id' => $orderId,
+            'user_id' => $completedBy->id,
+            'role' => 'manager',
+        ]);
+        $this->assertSame(2, DB::table('order_worker_logs')->where('order_id', $orderId)->count());
+
+        $this->get(route('kitchen'))
+            ->assertOk()
+            ->assertSee('Test Staff Member')
+            ->assertSee('Manager Sarah');
+    }
+
+    public function test_repeated_completion_does_not_duplicate_worker_logs(): void
+    {
+        $context = $this->createRestaurantContext();
+        $staff = $this->createStaffUser($context['restaurant_id'], 'kitchen');
+        $orderId = $this->createOrder($context['restaurant_id'], $context['table_id'], 'SS-DONE-002');
+
+        $this->actingAs($staff)
+            ->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'ready'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'completed'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'preparing'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'ready'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'completed'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->assertSame(1, DB::table('order_worker_logs')->where('order_id', $orderId)->count());
+    }
+
+    public function test_order_can_only_be_completed_from_ready(): void
+    {
+        $context = $this->createRestaurantContext();
+        $staff = $this->createStaffUser($context['restaurant_id'], 'kitchen');
+        $orderId = $this->createOrder($context['restaurant_id'], $context['table_id'], 'SS-GATE-001');
+
+        $this->actingAs($staff)
+            ->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'completed'])
+            ->assertRedirect(route('kitchen'))
+            ->assertSessionHasErrors('status');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId,
+            'status' => 'pending',
+        ]);
+        $this->assertSame(0, DB::table('order_status_events')->where('order_id', $orderId)->count());
+
+        $this->post(route('kitchen.orders.status', $orderId), ['status' => 'ready'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->post(route('kitchen.orders.status', $orderId), ['status' => 'completed'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId,
+            'status' => 'completed',
+        ]);
+    }
+
+    public function test_completed_orders_assign_registered_workers_in_round_robin_order(): void
+    {
+        $context = $this->createRestaurantContext();
+        $manager = $this->createStaffUser(
+            $context['restaurant_id'],
+            'manager',
+            'rotation-manager@safeserve.test',
+            'Rotation Manager'
+        );
+        $workerOne = User::factory()->create([
+            'name' => 'Worker One',
+            'email' => 'rotation-one@safeserve.test',
+            'role' => 'kitchen',
+            'restaurant_id' => $context['restaurant_id'],
+            'is_active' => true,
+        ]);
+        $workerTwo = User::factory()->create([
+            'name' => 'Worker Two',
+            'email' => 'rotation-two@safeserve.test',
+            'role' => 'kitchen',
+            'restaurant_id' => $context['restaurant_id'],
+            'is_active' => true,
+        ]);
+        $firstOrderId = $this->createOrder($context['restaurant_id'], $context['table_id'], 'SS-ROT-001');
+        $secondOrderId = $this->createOrder($context['restaurant_id'], $context['table_id'], 'SS-ROT-002');
+
+        $this->actingAs($manager);
+
+        foreach ([$firstOrderId, $secondOrderId] as $orderId) {
+            $this->from(route('kitchen'))
+                ->post(route('kitchen.orders.status', $orderId), ['status' => 'ready'])
+                ->assertRedirect(route('kitchen'));
+
+            $this->from(route('kitchen'))
+                ->post(route('kitchen.orders.status', $orderId), ['status' => 'completed'])
+                ->assertRedirect(route('kitchen'));
+        }
+
+        $this->assertDatabaseHas('order_worker_logs', [
+            'order_id' => $firstOrderId,
+            'user_id' => $workerOne->id,
+            'assignment_source' => 'auto',
+        ]);
+        $this->assertDatabaseHas('order_worker_logs', [
+            'order_id' => $secondOrderId,
+            'user_id' => $workerTwo->id,
+            'assignment_source' => 'auto',
+        ]);
+        $this->assertDatabaseHas('restaurant_worker_rotations', [
+            'restaurant_id' => $context['restaurant_id'],
+            'last_worker_id' => $workerTwo->id,
+        ]);
+
+        $this->get(route('kitchen'))
+            ->assertOk()
+            ->assertSee('Auto-assigned');
+    }
+
+    public function test_paused_workers_are_skipped_in_rotation(): void
+    {
+        $context = $this->createRestaurantContext();
+        $manager = $this->createStaffUser(
+            $context['restaurant_id'],
+            'manager',
+            'pause-manager@safeserve.test',
+            'Pause Manager'
+        );
+        $pausedWorker = User::factory()->create([
+            'name' => 'Paused Worker',
+            'email' => 'paused-worker@safeserve.test',
+            'role' => 'kitchen',
+            'restaurant_id' => $context['restaurant_id'],
+            'is_active' => false,
+        ]);
+        $activeWorker = User::factory()->create([
+            'name' => 'Active Worker',
+            'email' => 'active-worker@safeserve.test',
+            'role' => 'kitchen',
+            'restaurant_id' => $context['restaurant_id'],
+            'is_active' => true,
+        ]);
+        $orderId = $this->createOrder($context['restaurant_id'], $context['table_id'], 'SS-ROT-003');
+
+        $this->actingAs($manager);
+
+        $this->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'ready'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->from(route('kitchen'))
+            ->post(route('kitchen.orders.status', $orderId), ['status' => 'completed'])
+            ->assertRedirect(route('kitchen'));
+
+        $this->assertDatabaseHas('order_worker_logs', [
+            'order_id' => $orderId,
+            'user_id' => $activeWorker->id,
+            'assignment_source' => 'auto',
+        ]);
+        $this->assertDatabaseMissing('order_worker_logs', [
+            'order_id' => $orderId,
+            'user_id' => $pausedWorker->id,
+            'assignment_source' => 'auto',
+        ]);
+    }
+
     public function test_staff_cannot_acknowledge_alert_from_another_restaurant(): void
     {
         $context = $this->createRestaurantContext();
@@ -162,11 +372,15 @@ class StaffOrderWorkflowTest extends TestCase
         ];
     }
 
-    private function createStaffUser(?int $restaurantId, string $role): User
-    {
+    private function createStaffUser(
+        ?int $restaurantId,
+        string $role,
+        ?string $email = null,
+        ?string $name = null
+    ): User {
         return User::factory()->create([
-            'name' => $role === 'customer' ? 'Test Customer' : 'Test Staff Member',
-            'email' => $this->staffEmail(),
+            'name' => $name ?? ($role === 'customer' ? 'Test Customer' : 'Test Staff Member'),
+            'email' => $email ?? $this->staffEmail(),
             'role' => $role,
             'restaurant_id' => $restaurantId,
         ]);

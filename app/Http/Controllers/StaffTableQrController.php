@@ -35,10 +35,11 @@ class StaffTableQrController extends Controller
             ->orderBy('table_number')
             ->select('id', 'table_number', 'qr_code', 'is_active')
             ->get()
-            ->map(function (object $table): object {
+            ->map(function (object $table) use ($restaurant): object {
                 $table->menu_url = $table->qr_code
                     ? $this->menuUrl($table->qr_code)
                     : null;
+                $table->manual_code = $restaurant->slug.':'.$table->table_number;
 
                 return $table;
             });

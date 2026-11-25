@@ -39,12 +39,26 @@
                     Kitchen board
                 </a>
                 @can('manage-restaurant')
+                    <a href="{{ route('staff.reports.sales') }}" @class([
+                        'rounded-xl px-4 py-3 text-sm font-medium transition',
+                        'bg-white/10 text-white' => request()->routeIs('staff.reports.sales*'),
+                        'text-white/70 hover:bg-white/5 hover:text-white' => ! request()->routeIs('staff.reports.sales*'),
+                    ]) @if(request()->routeIs('staff.reports.sales*')) aria-current="page" @endif>
+                        Sales report
+                    </a>
                     <a href="{{ route('staff.tables.qr') }}" @class([
                         'rounded-xl px-4 py-3 text-sm font-medium transition',
                         'bg-white/10 text-white' => request()->routeIs('staff.tables.qr*'),
                         'text-white/70 hover:bg-white/5 hover:text-white' => ! request()->routeIs('staff.tables.qr*'),
                     ]) @if(request()->routeIs('staff.tables.qr*')) aria-current="page" @endif>
                         Table QR codes
+                    </a>
+                    <a href="{{ route('staff.workers.index') }}" @class([
+                        'rounded-xl px-4 py-3 text-sm font-medium transition',
+                        'bg-white/10 text-white' => request()->routeIs('staff.workers.*'),
+                        'text-white/70 hover:bg-white/5 hover:text-white' => ! request()->routeIs('staff.workers.*'),
+                    ]) @if(request()->routeIs('staff.workers.*')) aria-current="page" @endif>
+                        Workers
                     </a>
                 @endcan
             </nav>
@@ -74,7 +88,9 @@
                         <a href="{{ route('dashboard') }}" class="rounded-lg bg-forest-900 px-3 py-2 text-xs font-semibold text-white">Overview</a>
                         <a href="{{ route('kitchen') }}" class="rounded-lg border border-forest-900/15 px-3 py-2 text-xs font-semibold text-forest-900">Kitchen</a>
                         @can('manage-restaurant')
+                            <a href="{{ route('staff.reports.sales') }}" class="rounded-lg border border-forest-900/15 px-3 py-2 text-xs font-semibold text-forest-900">Reports</a>
                             <a href="{{ route('staff.tables.qr') }}" class="rounded-lg border border-forest-900/15 px-3 py-2 text-xs font-semibold text-forest-900">QR</a>
+                            <a href="{{ route('staff.workers.index') }}" class="rounded-lg border border-forest-900/15 px-3 py-2 text-xs font-semibold text-forest-900">Workers</a>
                         @endcan
                         <form method="POST" action="{{ route('staff.logout') }}">
                             @csrf

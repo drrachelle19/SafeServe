@@ -16,7 +16,7 @@
 
     <div class="mt-8 rounded-2xl border border-forest-900/10 bg-white p-5 text-sm leading-7 text-charcoal-700 print:hidden">
         <p class="font-semibold text-forest-950">Before placing these on tables</p>
-        <p>Scan each printed code with a phone camera and confirm it opens the correct table menu. Replace any damaged or faded code.</p>
+        <p>Guests can scan each printed QR code with a phone camera or type the printed table code at <code class="rounded bg-ivory-100 px-1 py-0.5">/table</code>. Confirm both ways open the correct table menu.</p>
         <p>QR codes open <code class="rounded bg-ivory-100 px-1 py-0.5">{{ config('app.url') }}</code>. For phone testing, set <code class="rounded bg-ivory-100 px-1 py-0.5">APP_URL</code> to your computer's network address and run the server on <code class="rounded bg-ivory-100 px-1 py-0.5">0.0.0.0</code>.</p>
     </div>
 
@@ -25,6 +25,8 @@
             <article class="rounded-3xl border border-forest-900/10 bg-white p-6 text-center shadow-sm print:break-inside-avoid print:shadow-none">
                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-forest-700">Table</p>
                 <h2 class="mt-2 text-3xl font-semibold text-forest-950">{{ $table->table_number }}</h2>
+                <p class="mt-2 text-xs text-charcoal-700/70">Manual code: <span class="font-semibold text-forest-950">{{ $table->table_number }}</span></p>
+                <p class="mt-1 text-[10px] text-charcoal-700/60 print:text-xs">Full code: <span class="font-semibold">{{ $table->manual_code }}</span></p>
 
                 @if ($table->menu_url)
                     <img src="{{ route('staff.tables.qr.image', $table->id) }}"

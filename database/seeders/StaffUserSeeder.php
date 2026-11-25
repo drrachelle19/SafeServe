@@ -18,11 +18,13 @@ class StaffUserSeeder extends Seeder
             [
                 'name' => 'SafeServe Manager',
                 'email' => 'manager@safeserve.test',
+                'phone' => '+255700000001',
                 'role' => 'manager',
             ],
             [
                 'name' => 'Head Chef',
                 'email' => 'kitchen@safeserve.test',
+                'phone' => '+255700000002',
                 'role' => 'kitchen',
             ],
         ];
@@ -32,6 +34,7 @@ class StaffUserSeeder extends Seeder
                 ['email' => $user['email']],
                 [
                     'name' => $user['name'],
+                    'phone' => $user['phone'],
                     'password' => Hash::make('password'),
                     'role' => $user['role'],
                     'restaurant_id' => $restaurantId,

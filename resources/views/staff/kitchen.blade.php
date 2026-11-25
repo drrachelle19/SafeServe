@@ -127,9 +127,12 @@
                         <select id="status-{{ $order->id }}" name="status"
                             class="mt-2 rounded-xl border border-forest-900/15 bg-white px-4 py-2 text-sm outline-none focus:border-forest-700 focus:ring-2 focus:ring-forest-700/20">
                             @foreach (['pending' => 'Pending', 'confirmed' => 'Confirmed', 'preparing' => 'Preparing', 'ready' => 'Ready', 'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $statusKey => $statusLabel)
-                                <option value="{{ $statusKey }}" @selected($order->status === $statusKey)>{{ $statusLabel }}</option>
+                                <option value="{{ $statusKey }}" @selected($order->status === $statusKey) @disabled($statusKey === 'completed' && $order->status !== 'ready')>
+                                    {{ $statusLabel }}{{ $statusKey === 'completed' && $order->status !== 'ready' ? ' (only from Ready)' : '' }}
+                                </option>
                             @endforeach
                         </select>
+                        <p class="mt-1 text-[11px] text-charcoal-700/70">Completed is available once the order is Ready.</p>
                     </div>
                     <div class="grow">
                         <label for="note-{{ $order->id }}" class="block text-xs font-semibold uppercase tracking-wider text-charcoal-700/70">Status note (optional)</label>
@@ -148,4 +151,101 @@
             </div>
         @endforelse
     </div>
+
+    <section class="mt-12" aria-labelledby="completed-heading">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h2 id="completed-heading" class="text-xl font-semibold text-forest-950">Completed today</h2>
+                <p class="mt-1 text-sm text-charcoal-700/75">Every worker who moved an order forward is listed with it, with the automatically assigned worker marked “Auto-assigned”.</p>
+            </div>
+            <span class="rounded-full bg-forest-900/5 px-4 py-2 text-xs font-medium text-forest-800">{{ $completedOrders->count() }} completed order(s)</span>
+        </div>
+
+        <div class="mt-6 overflow-x-auto rounded-3xl border border-forest-900/10 bg-white shadow-sm">
+            <table class="min-w-[720px] w-full divide-y divide-forest-900/10">
+                <caption class="sr-only">Completed orders and the workers who handled them</caption>
+                <thead class="bg-forest-950/5">
+                    <tr>
+                        <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-700/70">Order</th>
+                        <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-700/70">Table</th>
+                        <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-700/70">Completed</th>
+                        <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-700/70">Workers involved</th>
+                        <th scope="col" class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-charcoal-700/70">Value</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-forest-900/10">
+                    @forelse ($completedOrders as $order)
+                        <tr>
+                            <td class="px-5 py-4">
+                                <p class="text-sm font-semibold text-forest-950">{{ $order->order_number }}</p>
+                                <p class="mt-1 text-xs text-charcoal-700/70">{{ $order->customer_name ?: 'Guest' }}</p>
+                            </td>
+                            <td class="px-5 py-4 text-sm text-charcoal-900">Table {{ $order->table_number ?: '—' }}</td>
+                            <td class="px-5 py-4 text-sm text-charcoal-700">{{ $order->completed_at->format('H:i') }}</td>
+                            <td class="px-5 py-4">
+                                <div class="flex flex-wrap gap-2">
+                                    @forelse ($order->workers as $worker)
+                                        <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $worker->assignment_source === 'auto' ? 'bg-amber-50 text-amber-900' : 'bg-forest-900/5 text-forest-900' }}">
+                                            {{ $worker->name }} <span class="font-medium capitalize text-charcoal-700/70">({{ $worker->role }})</span>
+                                            @if ($worker->assignment_source === 'auto')
+                                                <span class="ml-1 rounded-full bg-amber-200/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">Auto-assigned</span>
+                                            @endif
+                                        </span>
+                                    @empty
+                                        <span class="text-xs text-charcoal-700/70">Worker not recorded</span>
+                                    @endforelse
+                                </div>
+                            </td>
+                            <td class="px-5 py-4 text-right text-sm font-medium text-forest-900">{{ number_format($order->total, 0) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="px-5 py-10 text-center text-sm text-charcoal-700/70">No orders have been completed today.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="mt-12" aria-labelledby="cancelled-heading">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h2 id="cancelled-heading" class="text-xl font-semibold text-forest-950">Cancelled today</h2>
+                <p class="mt-1 text-sm text-charcoal-700/75">Customer cancellations and the reasons they gave, so the team knows what happened.</p>
+            </div>
+            <span class="rounded-full bg-red-50 px-4 py-2 text-xs font-medium text-red-800">{{ $cancelledOrders->count() }} cancelled order(s)</span>
+        </div>
+
+        <div class="mt-6 overflow-x-auto rounded-3xl border border-forest-900/10 bg-white shadow-sm">
+            <table class="w-full min-w-[640px] divide-y divide-forest-900/10">
+                <caption class="sr-only">Orders cancelled by customers today</caption>
+                <thead class="bg-forest-950/5">
+                    <tr>
+                        <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-700/70">Order</th>
+                        <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-700/70">Table</th>
+                        <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-700/70">Cancelled</th>
+                        <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-charcoal-700/70">Reason</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-forest-900/10">
+                    @forelse ($cancelledOrders as $order)
+                        <tr>
+                            <td class="px-5 py-4">
+                                <p class="text-sm font-semibold text-forest-950">{{ $order->order_number }}</p>
+                                <p class="mt-1 text-xs text-charcoal-700/70">{{ $order->customer_name ?: 'Guest' }}</p>
+                            </td>
+                            <td class="px-5 py-4 text-sm text-charcoal-900">Table {{ $order->table_number ?: '—' }}</td>
+                            <td class="px-5 py-4 text-sm text-charcoal-700">{{ $order->cancelled_at->format('H:i') }}</td>
+                            <td class="px-5 py-4 text-sm text-red-800">{{ $order->cancellation_note ?: 'No reason recorded.' }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="px-5 py-10 text-center text-sm text-charcoal-700/70">No orders have been cancelled today.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
 @endsection
